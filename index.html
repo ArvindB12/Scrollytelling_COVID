@@ -1,0 +1,107 @@
+import { useEffect, useRef, useState, useCallback } from "react";
+
+// ─── Utility ────────────────────────────────────────────────────────────────
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+const invLerp = (a, b, v) => clamp((v - a) / (b - a), 0, 1);
+const mapRange = (v, a, b, c, d) => lerp(c, d, invLerp(a, b, v));
+
+// ─── Scene Config ────────────────────────────────────────────────────────────
+const SCENES = [
+  {
+    id: "intro",
+    title: "Before the Storm",
+    subtitle: "2019 — The World Was Open",
+    palette: { bg: "#e8f4e8", sky: "#b8ddb8", ground: "#7ab87a", accent: "#2d6a2d" },
+    bodyColor: "#f4c994",
+    shirtColor: "#4a90d9",
+    pantsColor: "#2c3e50",
+    mood: "free",
+  },
+  {
+    id: "lockdown",
+    title: "The World Shrinks",
+    subtitle: "March 2020 — The Lockdown",
+    palette: { bg: "#f0e6d3", sky: "#c9b99a", ground: "#8b7355", accent: "#5c4a32" },
+    bodyColor: "#f4c994",
+    shirtColor: "#7f8c8d",
+    pantsColor: "#2c3e50",
+    mood: "isolated",
+  },
+  {
+    id: "digital",
+    title: "Screens Become Life",
+    subtitle: "Mid 2020 — Forced Digital Adoption",
+    palette: { bg: "#1a1a2e", sky: "#16213e", ground: "#0f3460", accent: "#e94560" },
+    bodyColor: "#f4c994",
+    shirtColor: "#533483",
+    pantsColor: "#1a1a2e",
+    mood: "focused",
+  },
+  {
+    id: "habit",
+    title: "The Loop Forms",
+    subtitle: "2021 — Habit Crystallizes",
+    palette: { bg: "#0d0d1a", sky: "#0a0a14", ground: "#1a0a2e", accent: "#ff6b35" },
+    bodyColor: "#f4c994",
+    shirtColor: "#2d1b69",
+    pantsColor: "#0d0d1a",
+    mood: "addicted",
+  },
+  {
+    id: "postcovid",
+    title: "Everything at Once",
+    subtitle: "2022 — Post-COVID Chaos",
+    palette: { bg: "#1a0a0a", sky: "#2d0000", ground: "#1a1a00", accent: "#ffd700" },
+    bodyColor: "#f4c994",
+    shirtColor: "#8b0000",
+    pantsColor: "#1a1a00",
+    mood: "overwhelmed",
+  },
+  {
+    id: "ai",
+    title: "The AI Companion",
+    subtitle: "2024 — Cognitive Offloading",
+    palette: { bg: "#050510", sky: "#020208", ground: "#080818", accent: "#00d4ff" },
+    bodyColor: "#f4c994",
+    shirtColor: "#003366",
+    pantsColor: "#050510",
+    mood: "dependent",
+  },
+  {
+    id: "reflection",
+    title: "Who Am I Now?",
+    subtitle: "A Moment of Stillness",
+    palette: { bg: "#0a0a0a", sky: "#000000", ground: "#111111", accent: "#ffffff" },
+    bodyColor: "#f4c994",
+    shirtColor: "#222222",
+    pantsColor: "#111111",
+    mood: "reflective",
+  },
+];
+
+// ─── SVG Character ────────────────────────────────────────────────────────────
+function ArjunCharacter({ progress, mood, bodyColor, shirtColor, pantsColor, globalProgress }) {
+  // Posture morphing based on mood
+  const postures = {
+    free:        { spineAngle: 0,   headTilt: 0,   shoulderDrop: 0,   armLeft: -30, armRight: 30,  legSpread: 15, eyeOpen: 1,   mouthCurve: 6,  phoneScale: 0,   laptopScale: 0   },
+    isolated:    { spineAngle: -5,  headTilt: -8,  shoulderDrop: 4,   armLeft: -10, armRight: 10,  legSpread: 5,  eyeOpen: 0.7, mouthCurve: -4, phoneScale: 0.3, laptopScale: 0   },
+    focused:     { spineAngle: 12,  headTilt: 15,  shoulderDrop: 6,   armLeft: 5,   armRight: -5,  legSpread: 0,  eyeOpen: 0.9, mouthCurve: 0,  phoneScale: 0.5, laptopScale: 0.7 },
+    addicted:    { spineAngle: 22,  headTilt: 25,  shoulderDrop: 10,  armLeft: 15,  armRight: -15, legSpread: -5, eyeOpen: 0.5, mouthCurve: -2, phoneScale: 1,   laptopScale: 0.4 },
+    overwhelmed: { spineAngle: 8,   headTilt: 5,   shoulderDrop: 8,   armLeft: -25, armRight: 25,  legSpread: 10, eyeOpen: 1.1, mouthCurve: -8, phoneScale: 0.8, laptopScale: 0.8 },
+    dependent:   { spineAngle: 15,  headTilt: 18,  shoulderDrop: 5,   armLeft: 10,  armRight: -10, legSpread: 0,  eyeOpen: 0.8, mouthCurve: 2,  phoneScale: 0.6, laptopScale: 0.5 },
+    reflective:  { spineAngle: 0,   headTilt: -5,  shoulderDrop: 2,   armLeft: -5,  armRight: 5,   legSpread: 8,  eyeOpen: 1.2, mouthCurve: 3,  phoneScale: 0,   laptopScale: 0   },
+  };
+
+  const currentPosture = postures[mood] || postures.free;
+
+  const sa = currentPosture.spineAngle;
+  const ht = currentPosture.headTilt;
+  const sd = currentPosture.shoulderDrop;
+  const eo = currentPosture.eyeOpen;
+  const mc = currentPosture.mouthCurve;
+  const ls = currentPosture.legSpread;
+  const ps = currentPosture.phoneScale;
+  const laps = currentPosture.laptopScale;
+
+  // Breathing animation
